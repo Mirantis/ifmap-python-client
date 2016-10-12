@@ -142,7 +142,7 @@ class client:
 			#if ns_prefix == "env": break # don't add the envelope namespace again
 			if ns_prefix == "env": continue # don't add the envelope namespace again
 			_ns += "xmlns:"+ns_prefix+'="'+ns_uri+'" '
-		return self.__envelope % {'body':body, 'ns': _ns}
+		return str(self.__envelope % {'body':body, 'ns': _ns})
 
 	def call(self, method, body):
 		xml = self.envelope(body)
