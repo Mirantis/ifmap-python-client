@@ -90,7 +90,14 @@ class client:
 		self.__url = url
                 self.__username = user
                 self.__password = password
-                self._http = HTTPClient(*self.__url, ssl = True,
+                try:
+                    self._http = HTTPClient(*self.__url, ssl = True,
+                                        connection_timeout = None,
+                                        network_timeout = None,
+                                        ssl_options = self.__ssl_options,
+                                        insecure = True)
+                except TypeError:
+                    self._http = HTTPClient(*self.__url, ssl = True,
                                         connection_timeout = None,
                                         network_timeout = None,
                                         ssl_options = self.__ssl_options)
