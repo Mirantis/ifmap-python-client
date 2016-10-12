@@ -54,6 +54,23 @@ namespaces = {
 # exception. https://github.com/gwik/geventhttpclient/blob/master/src/geventhttpclient/connectionpool.py#L37
 concurrency = 1 # arbitrary value since it is not possible to use ulimited.
 
+class AsyncReadWrapper(object):
+    """ Perform the socket read in a separate greenlet """
+    def __init__(self, request):
+        self._greenlet = gevent.spawn(self.AsyncRead, request)
+	self._content = None
+
+    def AsyncRead(self, request):
+        self._content = request.read()
+
+    def __str__(self, *args, **kwargs):
+        self._greenlet.join()
+        return self._content
+
+    def __repr__(self, *args, **kwargs):
+        self._greenlet.join()
+        return self._content
+
 class client:
 	"""
 	IF-MAP client
@@ -193,6 +210,30 @@ class client:
 
 				#return content
 				#pycurl return content.getvalue()
+				return content
+
+		except	HttpException, e:
+				log.error("HTTP Connection error in IF-MAP client: %s", e.reason)
+		except Exception as e:
+				log.error("Uknown error sending IF-MAP message to server %s", str(e))
+				raise
+
+	def call_async_result(self, method, body):
+		xml = self.envelope(body)
+                base64string = base64.encodestring('%s:%s' % (self.__username, self.__password)).replace('\n', '')
+
+                # geventhttp
+		headers={
+		  'Content-type': 'text/xml; charset="UTF-8"',
+		  'Content-length': '%s' %(str(len(xml))),
+                  'Authorization': 'Basic %s' %(base64string),
+		  'SOAPAction': '%s' % (method),
+		}
+
+		try:
+				response = self._http.post('/', body = xml, headers = headers)
+				content = AsyncReadWrapper(response)
+
 				return content
 
 		except	HttpException, e:
