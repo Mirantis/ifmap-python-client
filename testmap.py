@@ -140,33 +140,71 @@ from ifmap.metadata import Metadata
 
 def client_test():
     print 'testing ifmap client (this requires a running server)'
-    mapclient = client("https://127.0.0.1:8443", 'test', 'test', namespaces)
+    mapclient = client("https://127.0.0.1:443", 'test', 'test', namespaces)
 
     result = mapclient.call('newSession', NewSessionRequest())
     mapclient.set_session_id(newSessionResult(result).get_session_id())
     mapclient.set_publisher_id(newSessionResult(result).get_publisher_id())
 
-    meta = str(Metadata('role', 'employee', {'ifmap-cardinality':'multiValue'}))
-    pubreq = PublishRequest(mapclient.get_session_id(), str(PublishUpdateOperation(id1=str(IPAddress("10.0.0.1")), metadata=meta, lifetime='forever')))
+    meta = str(Metadata('iperms', 'rwxrwxrwx',
+                        {'ifmap-cardinality':'multiValue'}, ns_prefix = "ct",
+                        elements = '<ct:mperms>rwxrwxrwx</ct:mperms>'))
+    pubreq = PublishRequest(mapclient.get_session_id(),
+                 str(PublishUpdateOperation(
+                        id1=str(Identity(name = "ct:cloud", type = "other",
+                                         other_type = "extended")),
+                        metadata=meta,
+                        lifetime='forever')))
     result = mapclient.call('publish', pubreq)
 
-    searchreq = SearchRequest(mapclient.get_session_id(), str(IPAddress("10.0.0.1")), validation="None")
-    result = mapclient.call('search', searchreq)
+    meta = str(Metadata('iperms', 'rwxrwxrwx',
+                        {'ifmap-cardinality':'multiValue'}, ns_prefix = "ct",
+                        elements = '<ct:mperms>rwxrwxrwx</ct:mperms>'))
+    pubreq = PublishRequest(mapclient.get_session_id(),
+                 str(PublishUpdateOperation(
+                        id1=str(Identity(name = "ct:tenant:infra", type = "other",
+                                         other_type = "extended")),
+                        metadata=meta,
+                        lifetime='forever')))
+    result = mapclient.call('publish', pubreq)
 
-    subreq = SubscribeRequest(mapclient.get_session_id(), operations=str(SubscribeUpdateOperation('subscription-1',str(IPAddress("10.0.0.1")))))
-    result = mapclient.call('subscribe', subreq)
+    meta = str(Metadata('belongs-to', '',
+                       {'ifmap-cardinality':'singleValue'}, ns_prefix = "ct",
+                       elements = '<ct:mperms>rwxrwxrwx</ct:mperms>'))
+    pubreq = PublishRequest(mapclient.get_session_id(),
+                 str(PublishUpdateOperation(
+                        id1=str(Identity(name = "ct:cloud", type = "other",
+                                         other_type = "extended")),
+                        id2=str(Identity(name = "ct:tenant:infra", type = "other",
+                                         other_type = "extended")),
+                        metadata=meta,
+                        lifetime='forever')))
+    result = mapclient.call('publish', pubreq)
 
-    pollreq = PollRequest(mapclient.get_session_id())
-    result = mapclient.call('poll', pollreq)
+    #meta = str(Metadata('role', 'employee', {'ifmap-cardinality':'multiValue'}))
+    #pubreq = PublishRequest(mapclient.get_session_id(), str(PublishUpdateOperation(id1=str(IPAddress("10.0.0.1")), metadata=meta, lifetime='forever')))
+    #result = mapclient.call('publish', pubreq)
 
-    subreq = SubscribeRequest(mapclient.get_session_id(), operations=str(SubscribeDeleteOperation('subscription-1')))
-    result = mapclient.call('subscribe', subreq)
+    #searchreq = SearchRequest(mapclient.get_session_id(), str(IPAddress("10.0.0.1")), validation="None")
+    #result = mapclient.call('search', searchreq)
 
-    purgereq = PurgeRequest(mapclient.get_session_id(), mapclient.get_publisher_id())
-    result = mapclient.call('purge', purgereq)
+    #subreq = SubscribeRequest(mapclient.get_session_id(), operations=str(SubscribeUpdateOperation('subscription-1',str(IPAddress("10.0.0.1")))))
+    #result = mapclient.call('subscribe', subreq)
 
-    endreq = EndSessionRequest(mapclient.get_session_id())
-    result = mapclient.call('endSession', endreq)
+    #pollreq = PollRequest(mapclient.get_session_id())
+    #result = mapclient.call('poll', pollreq)
+
+    #subreq = SubscribeRequest(mapclient.get_session_id(), operations=str(SubscribeDeleteOperation('subscription-1')))
+    #result = mapclient.call('subscribe', subreq)
+
+    #purgereq = PurgeRequest(mapclient.get_session_id(), mapclient.get_publisher_id())
+    #result = mapclient.call('purge', purgereq)
+
+    #endreq = EndSessionRequest(mapclient.get_session_id())
+    #result = mapclient.call('endSession', endreq)
+    import time
+    while True:
+        time.sleep(10)
 
 
 

@@ -5,7 +5,18 @@
 # Open Source, see LICENSE
 #
 
+import ssl
+import gevent
+import geventhttpclient
+from geventhttpclient import HTTPClient
+
 import urllib
+
+import base64
+import cStringIO
+import sys
+
+
 from logging import getLogger
 
 log = getLogger(__name__) # when imported, the logger will be named "ifmap.client"
@@ -23,23 +34,33 @@ except ImportError:
 			f = http_client_lib.urlopen(http_client_lib.Request(url, body, headers))
 			return f.info(), f.read()
 
+#import urllib2 as http_client_lib
+#class Http(): # wrapper to use when httplib2 not available
+#	def request(self, url, method, body, headers):
+#		f = http_client_lib.urlopen(http_client_lib.Request(url, body, headers))
+#		return f.info(), f.read()
+
 namespaces = {
 	'env'   :   "http://www.w3.org/2003/05/soap-envelope",
 	'ifmap' :   "http://www.trustedcomputinggroup.org/2010/IFMAP/2",
-	'meta'  :   "http://www.trustedcomputinggroup.org/2010/IFMAP-METADATA/2",
+	'meta'  :   "http://www.trustedcomputinggroup.org/2010/IFMAP-METADATA/2"
 }
 
 class client:
 	"""
 	IF-MAP client
 	"""
-	http = Http()
+    
 	__url = None
 	__session_id = None
 	__publisher_id = None
 	__last_sent = None
 	__last_received = None
 	__namespaces = None
+	__ssl_options = {
+		'cert_reqs'   : ssl.CERT_NONE,
+		'ssl_version' : ssl.PROTOCOL_TLSv1,
+	}
 
 	__envelope ="""<?xml version="1.0" encoding="UTF-8"?>
 <env:Envelope xmlns:env="http://www.w3.org/2003/05/soap-envelope" %(ns)s>
@@ -49,18 +70,31 @@ class client:
 </env:Envelope>
 """
 
-	def __init__(self, url, user=None, password=None, namespaces={}):
+	def __init__(self, url, user=None, password=None, namespaces={}, ssl_opts=None):
 		if user and password:
-			self.__password_mgr=http_client_lib.HTTPPasswordMgrWithDefaultRealm()
-			self.__password_mgr.add_password(None, url, user, password)
-			handler = http_client_lib.HTTPBasicAuthHandler(self.__password_mgr)
-			opener = http_client_lib.build_opener(handler)
-			http_client_lib.install_opener(opener)
+#			self.__password_mgr=http_client_lib.HTTPPasswordMgrWithDefaultRealm()
+#			self.__password_mgr.add_password(None, url, user, password)
+#			handler = http_client_lib.HTTPBasicAuthHandler(self.__password_mgr)
+#			opener = http_client_lib.build_opener(handler)
+#			http_client_lib.install_opener(opener)
 
-		if namespaces:
-				self.__namespaces = namespaces
+                        #pycurl.global_init(pycurl.GLOBAL_SSL)
+
+			pass
+
+		#if namespaces:
+		self.__namespaces = namespaces
+		if ssl_opts:
+			self.__ssl_options.update(ssl_opts)
 
 		self.__url = url
+                self.__username = user
+                self.__password = password
+                self._http = HTTPClient(*self.__url, ssl = True,
+                                        connection_timeout = None,
+                                        network_timeout = None,
+                                        ssl_options = self.__ssl_options)
+
 
 	def last_sent(self):
 		return self.__last_sent
@@ -71,31 +105,77 @@ class client:
 	def envelope(self, body) :
 		_ns = ""
 		for ns_prefix, ns_uri in self.__namespaces.items():
-			if ns_prefix == "env": break # don't add the envelope namespace again
+			#if ns_prefix == "env": break # don't add the envelope namespace again
+			if ns_prefix == "env": continue # don't add the envelope namespace again
 			_ns += "xmlns:"+ns_prefix+'="'+ns_uri+'" '
 		return self.__envelope % {'body':body, 'ns': _ns}
 
 	def call(self, method, body):
 		xml = self.envelope(body)
+		#headers={
+		#  'Content-type': 'text/xml; charset="UTF-8"',
+		#  'Content-length': str(len(xml)),
+		#  "SOAPAction": '"%s"' % (method),
+		#}
+
+                base64string = base64.encodestring('%s:%s' % (self.__username, self.__password)).replace('\n', '')
+		# pycurl
+		#headers=[
+		#  'Content-type: text/xml; charset="UTF-8"',
+		#  'Content-length: %s' %(str(len(xml))),
+                #  'Authorization : Basic %s' %(base64string),
+		#  'SOAPAction: %s' % (method),
+		#]
+
+                # geventhttp
 		headers={
 		  'Content-type': 'text/xml; charset="UTF-8"',
-		  'Content-length': str(len(xml)),
-		  "SOAPAction": '"%s"' % (method),
+		  'Content-length': '%s' %(str(len(xml))),
+                  'Authorization': 'Basic %s' %(base64string),
+		  'SOAPAction': '%s' % (method),
 		}
+
 		try:
 				log.info("sending IF-MAP message to server")
 				log.debug("========  sending IF-MAP message ========")
 				log.debug("\n%s\n", xml)
 				log.debug("========  /sending IF-MAP message ========")
 
-				response, content = self.http.request(self.__url,"POST", body=xml, headers=headers )
+				#response, content = self.http.request(self.__url,"POST", body=xml, headers=headers )
+
+                                #self.http = pycurl.Curl()
+                                #self.http.setopt(pycurl.URL, self.__url)
+                                #self.http.setopt(pycurl.HTTPHEADER, headers)
+                                #self.http.setopt(pycurl.POSTFIELDS, xml)
+                                #self.http.setopt(pycurl.VERBOSE, True)
+                                #self.http.setopt(pycurl.SSL_VERIFYPEER, 0)   
+                                #self.http.setopt(pycurl.SSL_VERIFYHOST, 0)
+                                #content = cStringIO.StringIO()
+                                #self.http.setopt(pycurl.WRITEFUNCTION,
+                                #                 content.write)
+                                #self.http.perform()
+
+				#self.http = HTTPClient(*self.__url, ssl = True,
+				#                       ssl_options = {'cert_reqs': gevent.ssl.CERT_NONE,
+				#		                      'ssl_version': PROTOCOL_SSLv3})
+				#response = self.http.post('/', body = xml, headers = headers)
+				response = self._http.post('/', body = xml, headers = headers)
+				content = response.read()
+
 				self.__last_sent = xml
+
+				#self.__last_received = content
+				#pycurl self.__last_received = content.getvalue()
 				self.__last_received = content
 
 				log.debug("========  received IF-MAP response ========")
+				#log.debug("\n%s\n", content)
+				#pycurl log.debug("\n%s\n", content.getvalue())
 				log.debug("\n%s\n", content)
 				log.debug("========  /receive IF-MAP response ========")
 
+				#return content
+				#pycurl return content.getvalue()
 				return content
 
 		except	HttpException, e:

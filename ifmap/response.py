@@ -16,10 +16,13 @@ class Response():
         Take a result string and process it
         """
         if result: 
-            __env = ElementTree.fromstring(result)
-            __body = __env.find('{http://www.w3.org/2003/05/soap-envelope}Body')
-            __response = __body.find('{http://www.trustedcomputinggroup.org/2010/IFMAP/2}response')
-            self.__xml = __response.find('*')
+            env = ElementTree.fromstring(result)
+            body = env.find('{http://www.w3.org/2003/05/soap-envelope}Body')
+            response = body.find('{http://www.trustedcomputinggroup.org/2010/IFMAP/2}response')
+            # xml.etree.ElementTree find is broken in python 2.6
+            children = response.findall('*')
+            if len(children):
+                self.__xml = children[0]
             
     def element(self):
         """
@@ -38,6 +41,7 @@ class newSessionResult(Response):
     newSessionResult
     """
     def __init__(self, result):
+        #import pdb; pdb.set_trace()
         self.__newSession = Response(result).element()
         
     def get_session_id(self):

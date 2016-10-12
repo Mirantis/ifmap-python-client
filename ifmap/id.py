@@ -139,7 +139,7 @@ class Identity(ifmapIDFactory):
 		if self.__type:
 			self.__XML +=' type="'+self.__type+'"'
 		if self.__other_type:
-			self.__XML +=' other-type="'+self.__other_type+'"'
+			self.__XML +=' other-type-definition="'+self.__other_type+'"'
 		if self.__administrative_domain:
 			self.__XML += ' administrative-domain="'+self.__administrative_domain+'"'
 		self.__XML += " />"

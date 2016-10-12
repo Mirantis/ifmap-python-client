@@ -15,6 +15,7 @@ class NewSessionRequest(RequestBase):
 		self.__max_poll_result = max_poll_result
 
 	def __str__(self):
+                #import pdb; pdb.set_trace()
 		return '<ifmap:newSession %s' % (attr({'max-poll-result-size':self.__max_poll_result})) + '/>';
 		
 class RenewSessionRequest(RequestBase):
